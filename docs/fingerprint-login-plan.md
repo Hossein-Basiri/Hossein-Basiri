@@ -1,238 +1,162 @@
-# Implementation Plan: Fingerprint / Biometric Login for the Android App
+# Implementation Plan: Fingerprint / Biometric Login (SEMX Android app)
 
-> **Note:** This repository currently contains only a GitHub profile README — there is no
-> Android application source in it yet. This document is the design/implementation **plan**
-> for adding biometric login to the Android app. The primary plan targets **native Android
-> (Kotlin)** using AndroidX Biometric. A short mapping to other stacks (.NET MAUI, React
-> Native, Flutter) is included at the end so it can be adapted to whatever the real app uses.
+> **Target app:** `Hossein-Basiri/ai-powered-smart-expense-manager` → `src/ClientApp`.
+> This is a **Capacitor 8 + React 19 + TypeScript (Vite)** web app wrapped as a native
+> Android app — **not** native Kotlin or .NET MAUI. So biometric login is implemented in
+> TypeScript against a Capacitor biometric plugin, reusing the app's existing refresh-token
+> session model. (An earlier draft of this file targeted native Kotlin; it has been rewritten
+> for the actual stack.)
 
-## 1. Goal & User Story
+## 1. User story & acceptance criteria
+**After a successful login** (password or Google), if the device supports biometrics and it
+isn't already set up, **ask the user** whether to enable fingerprint / biometric login. If they
+accept, future logins can be completed with a biometric prompt instead of a password. The user
+can **disable** it from **Settings**.
 
-**As a user**, after I log in with my username/password, I want the app to **offer** to enable
-biometric login (fingerprint or face/device biometrics). If I accept, subsequent logins can be
-completed with a biometric prompt instead of typing my password. I can **disable** biometric
-login at any time from **Settings**.
+1. Post-login, in the native app only: if biometrics are available and not yet enrolled, show a
+   prompt *"Enable fingerprint / biometric login?"* (**Enable** / **Not now**).
+2. On **Enable** → biometric prompt → securely persist the **refresh token** so future logins can
+   mint a fresh session without a password.
+3. Login screen shows a **"Log in with fingerprint"** button when biometric login is enrolled.
+   It authenticates, reads the stored refresh token, calls `/users/refresh`, and establishes the
+   session.
+4. **Settings** gets a **"Biometric login"** card with a toggle. Off → delete the stored secret.
+   On → run enrollment (requires an active session).
+5. Graceful handling: no hardware, none enrolled at OS level, lockout, cancel, and refresh token
+   expired/revoked → clear state and fall back to password.
 
-### Acceptance criteria
-1. After a successful credential login, if the device supports biometrics **and** biometric login
-   is not already enabled, show a one-time prompt: *"Enable fingerprint / biometric login?"*
-   with **Enable** / **Not now** actions.
-2. On **Enable**, authenticate with a biometric prompt and securely persist the credential/refresh
-   token so future logins can be unlocked biometrically.
-3. On the login screen, if biometric login is enabled, show a **"Login with fingerprint"** entry
-   point that authenticates and logs the user in without a password.
-4. **Settings** contains a **"Biometric login"** toggle. Turning it **off** deletes the stored
-   secret and disables the feature. Turning it **on** re-runs the enrollment flow.
-5. Graceful handling for: no biometric hardware, no enrolled biometrics, lockout, user cancel,
-   and OS-level biometric changes (invalidate stored key).
+## 2. Why the refresh token (not the password)
+The app already stores a `TokenPair { accessToken, refreshToken }` in `localStorage` via
+`src/auth/session.ts`, and `src/api/client.ts` already exchanges a refresh token at
+`POST /users/refresh` for a fresh pair. Biometric login **reuses that exact mechanism**:
 
-## 2. Key Design Decisions
+- On enrollment we copy the current `refreshToken` into **biometric-protected secure storage**
+  (OS Keystore), releasing it only after a successful biometric authentication.
+- On biometric login we retrieve it, POST it to `/users/refresh`, store the returned pair in
+  `Session`, load `/users/api/users/me`, and we're in — the same shape as
+  `AuthContext.establishSession`.
 
-### What do we store, and how?
-We do **not** store the user's raw password. We store a **secret that lets us re-authenticate**:
-- **Preferred:** the backend **refresh token** (or a long-lived session token) issued on login.
-- **Alternative:** an opaque "biometric login token" the backend mints specifically for this
-  purpose (best practice — lets the server revoke biometric sessions independently).
+No raw password is ever stored. **No backend changes are required** — `/users/refresh` already
+exists. (Optional hardening in §8.)
 
-The secret is stored **encrypted at rest** and released **only** after a successful biometric
-authentication, by binding decryption to a key in the Android **Keystore** that requires user
-authentication.
+## 3. Plugin choice (needs a Capacitor 8 compatibility check)
+The app is on `@capacitor/core@^8.4.1`. Recommended:
 
-### Security model (native Android)
-- Generate an AES key in the **Android Keystore** with `setUserAuthenticationRequired(true)` and
-  `setInvalidatedByBiometricEnrollment(true)`. The key becomes usable only inside a
-  `BiometricPrompt` authentication result, and is **auto-invalidated if the user adds/changes a
-  fingerprint** (prevents an attacker who enrolls a new fingerprint from unlocking the secret).
-- Use `BiometricPrompt` with a `CryptoObject` wrapping a `Cipher` initialized from that key.
-  Encrypt the secret on enrollment; decrypt it on login. The crypto binding guarantees the
-  biometric actually happened (defeats simple "return success" tampering).
-- Store the ciphertext + IV in `EncryptedSharedPreferences` (Jetpack Security) as defense in depth.
-- Set `BIOMETRIC_STRONG` (Class 3) as the required authenticator so only strong biometrics qualify.
+- **`@aparajita/capacitor-biometric-auth`** — `checkBiometry()` (availability + type) and
+  `authenticate()` (the biometric prompt). Actively maintained, typed, promise-based.
+- **`@aparajita/capacitor-secure-storage`** — Keystore/Keychain-backed key-value store for the
+  refresh token.
 
-### Terminology in the UI
-Android device auth spans fingerprint, face, and iris. The system `BiometricPrompt` shows whatever
-the device supports. We label the feature **"Biometric login"** in Settings, but the post-login
-prompt can say **"fingerprint / biometric"** to match the user's wording. (See open question in §9
-about offering a fingerprint-vs-biometric choice.)
+**Fallback:** `capacitor-native-biometric`, which bundles `verifyIdentity()` +
+`setCredentials/getCredentials/deleteCredentials` in one plugin.
 
-## 3. Dependencies (native Android)
+> **Action item:** before coding, confirm the chosen plugin publishes a build compatible with
+> Capacitor 8 (peer deps). If not, use the fallback or pin a compatible major. This is the one
+> real unknown in the plan.
 
-```kotlin
-// app/build.gradle(.kts)
-dependencies {
-    implementation("androidx.biometric:biometric:1.1.0")            // BiometricPrompt + BiometricManager
-    implementation("androidx.security:security-crypto:1.1.0-alpha06") // EncryptedSharedPreferences
-    // (existing) coroutines, lifecycle, DI (Hilt/Koin), networking (Retrofit/Ktor)
-}
+Install (indicative):
+```bash
+cd src/ClientApp
+npm i @aparajita/capacitor-biometric-auth @aparajita/capacitor-secure-storage
+npm run android:sync   # build + cap sync android
 ```
+Android specifics: `minSdkVersion` ≥ 23 (check `android/variables.gradle`); the plugin adds the
+`USE_BIOMETRIC` permission via its own manifest. No Google Play policy issue — biometric data
+never leaves the device; the plugin only returns success + lets us unlock the stored token.
 
-`minSdk` 23+ is required for Keystore-backed biometric crypto; `BiometricPrompt` unifies the API
-across versions. No manifest permission is needed for `androidx.biometric` (the legacy
-`USE_FINGERPRINT` / `USE_BIOMETRIC` permissions are normal and handled by the library).
-
-## 4. Component Breakdown
-
-| Component | Responsibility |
+## 4. New / changed files
+| File | Change |
 |---|---|
-| `BiometricAvailability` | Wraps `BiometricManager.canAuthenticate(BIOMETRIC_STRONG)` → enum: `AVAILABLE`, `NO_HARDWARE`, `HW_UNAVAILABLE`, `NONE_ENROLLED`. |
-| `CryptoManager` | Creates/loads the Keystore key; provides `getEncryptCipher()` / `getDecryptCipher(iv)`. |
-| `BiometricSecretStore` | Persists/reads/clears the encrypted secret + IV in `EncryptedSharedPreferences`; exposes `isEnabled()`. |
-| `BiometricAuthenticator` | Shows `BiometricPrompt` with a `CryptoObject`; returns the unlocked `Cipher` or a typed error. |
-| `AuthRepository` | Existing credential login; adds `enrollBiometric(token)`, `loginWithBiometric()`, `disableBiometric()`. |
-| `PostLoginBiometricPrompt` (UI) | The "Enable biometric login?" dialog shown after first successful login. |
-| `LoginScreen` (UI) | Adds a "Login with fingerprint" button when enabled. |
-| `SettingsScreen` (UI) | Adds the "Biometric login" toggle. |
+| `src/lib/biometric.ts` | **New.** Thin native wrapper (mirrors `lib/googleNative.ts`): `biometricAvailability()`, `promptAndStore(key, value)`, `promptAndRead(key)`, `remove(key)`. Lazy-imports the plugin; all calls gated by `isNativeApp()`. |
+| `src/auth/biometric.ts` | **New.** Feature glue: `REFRESH_KEY` constant, `isBiometricEnabled()` (a `semx.biometric` localStorage flag), `enable(refreshToken)`, `disable()`. The **flag** lives in localStorage; the **secret** lives in secure storage. |
+| `src/auth/AuthContext.tsx` | Add `biometricEnabled`, `enrollBiometric()`, `loginWithBiometric()`, `disableBiometric()` to the context. `enrollBiometric` reads `Session.tokens.refreshToken`; `loginWithBiometric` reads the stored token → `/users/refresh` → reuse the existing session-establish path; `logout()` should **not** wipe the enrollment (so biometric login survives logout) — clearing is Settings-only. |
+| `src/features/auth/BiometricEnrollPrompt.tsx` | **New.** The post-login "Enable fingerprint / biometric login?" dialog (reuse the existing `Modal` component). |
+| `src/features/auth/LoginPage.tsx` | After `finishLogin` → `'ok'` in the native app, if available && !enrolled, show `BiometricEnrollPrompt` before navigating. Add a **"Log in with fingerprint"** button (native + enrolled) that calls `loginWithBiometric()`. |
+| `src/features/settings/BiometricCard.tsx` | **New.** Settings card with the toggle, modeled on the existing Two-factor card. Rendered from `SettingsPage` only when `isNativeApp()`. |
+| `src/features/settings/SettingsPage.tsx` | Render `<BiometricCard />` (native only). |
 
-## 5. Flows
+## 5. Flows (mapped to existing code)
 
-### 5.1 Enrollment (after successful password login)
+### 5.1 Enrollment — after `establishSession` returns `'ok'`
 ```
-password login OK
-  └─ token/refreshToken received from backend
-       └─ if BiometricAvailability == AVAILABLE and !store.isEnabled():
-            show "Enable fingerprint / biometric login?"  [Enable] [Not now]
-              Enable →
-                cipher = CryptoManager.getEncryptCipher()
-                BiometricPrompt(CryptoObject(cipher)) → onSuccess:
-                    encrypted = cipher.doFinal(token.bytes)
-                    store.save(encrypted, cipher.iv)   // marks enabled
-                    toast "Biometric login enabled"
-              Not now → remember dismissal (don't nag every login; re-offer from Settings)
-```
-- If `NONE_ENROLLED`: optionally offer a deep link to system settings to enroll a fingerprint,
-  or just skip the prompt.
-
-### 5.2 Login with biometrics
-```
-LoginScreen loads
-  └─ if store.isEnabled(): show "Login with fingerprint" button
-        tap →
-          (encrypted, iv) = store.load()
-          cipher = CryptoManager.getDecryptCipher(iv)
-          BiometricPrompt(CryptoObject(cipher)) → onSuccess:
-              token = cipher.doFinal(encrypted)
-              AuthRepository.loginWithBiometric(token)  // exchange refresh token → session
-              navigate to Home
-          onError(KEY_PERMANENTLY_INVALIDATED):  // biometrics changed on device
-              store.clear(); show "Please log in with your password again"
+login('ok')  →  navigate happens in LoginPage.finishLogin
+  ├─ if isNativeApp() && biometricAvailable && !isBiometricEnabled():
+  │     show BiometricEnrollPrompt
+  │       Enable → enrollBiometric():
+  │                  token = Session.tokens.refreshToken
+  │                  biometric.promptAndStore(REFRESH_KEY, token)   // biometric prompt here
+  │                  set semx.biometric = '1'
+  │                  toast "Biometric login enabled"
+  │       Not now → set a dismissed marker (re-offer only from Settings)
+  └─ then navigate(from)
 ```
 
-### 5.3 Disable from Settings
+### 5.2 Login with biometrics — LoginPage button
 ```
-Settings → toggle "Biometric login" OFF
-  └─ store.clear()  (delete ciphertext + IV, delete Keystore key, set enabled=false)
-Settings → toggle ON
-  └─ requires an active/valid token → run enrollment flow (5.1). If no token in memory,
-     prompt user to re-authenticate with password first.
+tap "Log in with fingerprint"
+  └─ loginWithBiometric():
+       refreshToken = biometric.promptAndRead(REFRESH_KEY)   // biometric prompt here
+       response = fetch POST /users/refresh { refreshToken }
+       if !ok → disable(); throw "Please sign in with your password"
+       Session.tokens = response
+       profile = api('/users/api/users/me')
+       Session.profile = profile; setUser(profile); setRoles(...)
+       navigate home
 ```
 
-## 6. Error & Edge-Case Handling
+### 5.3 Settings toggle
+```
+OFF → disableBiometric(): biometric.remove(REFRESH_KEY); clear semx.biometric flag; toast
+ON  → requires Session.tokens (user is logged in) → enrollBiometric() (5.1 body)
+```
 
-| Situation | Handling |
+## 6. Edge cases
+| Case | Handling |
 |---|---|
-| No biometric hardware (`NO_HARDWARE`) | Never show the offer or the login button. Toggle in Settings shown disabled with an explanatory subtitle. |
-| Hardware busy (`HW_UNAVAILABLE`) | Skip silently; fall back to password. |
-| No biometrics enrolled (`NONE_ENROLLED`) | Offer deep link to `Settings.ACTION_BIOMETRIC_ENROLL`; otherwise fall back to password. |
-| User cancels prompt | Return to the calling screen; keep password login available. |
-| Too many attempts / lockout (`ERROR_LOCKOUT`, `ERROR_LOCKOUT_PERMANENT`) | Show message; fall back to password login. |
-| New fingerprint enrolled / biometrics changed (`KEY_PERMANENTLY_INVALIDATED`) | Clear the stored secret, disable feature, ask user to log in with password and re-enroll. |
-| Backend token expired/revoked | `loginWithBiometric` fails → clear secret, force password login. |
-| App uninstalled/reinstalled | Keystore key + EncryptedSharedPreferences are wiped by the OS; feature simply starts disabled. |
+| Not a native build (browser/PWA) | Feature fully hidden — every entry point is behind `isNativeApp()`. |
+| No biometric hardware / none enrolled at OS level | Never show the offer or the login button. In Settings, show the toggle disabled with a hint ("Set up a fingerprint in your device settings first"). |
+| User cancels the biometric prompt | Treat as no-op (same `/cancel/i` convention as `takeReceiptPhoto`/`nativeGoogleIdToken`); keep password login available. |
+| Lockout / too many attempts | Surface the plugin error message; fall back to password. |
+| Stored refresh token expired or revoked (`/users/refresh` 4xx) | `disableBiometric()` + prompt to sign in with password and re-enroll. |
+| New fingerprint enrolled on device | If using the plugin's key-invalidation option, reads fail → treat as the expired-token case. |
+| Logout | Keep the enrollment (biometric login is a convenience across logouts). Only Settings-off or a failed refresh clears it. |
 
-## 7. Testing Plan
-- **Unit:** `BiometricAvailability` mapping; `BiometricSecretStore` save/load/clear; repository token
-  exchange (mock backend). 
-- **Instrumented (androidTest):** enrollment persists ciphertext; decrypt returns original token;
-  `store.clear()` removes the key; key invalidation path clears state.
-- **Manual/QA matrix:** device with fingerprint, device with face only, device with no biometrics,
-  emulator with enrolled fingerprint (`adb -e emu finger touch 1`), lockout by repeated failures,
-  add-new-fingerprint invalidation, airplane-mode token-exchange failure.
-- **Security review:** confirm no raw password stored; confirm key uses `BIOMETRIC_STRONG` +
-  `setUserAuthenticationRequired(true)` + `setInvalidatedByBiometricEnrollment(true)`.
+## 7. Tests (Vitest — matches existing `*.test.tsx`)
+- `lib/biometric.test.ts`: mock the plugin; availability mapping; store/read/remove; cancel path.
+- `auth/biometric.test.ts`: enable sets flag + stores token; disable clears both.
+- `AuthContext` test: `loginWithBiometric` refreshes and establishes a session (mock `fetch`/`api`).
+- `LoginPage.test.tsx`: fingerprint button appears only when native + enrolled; enroll prompt
+  appears after login when available + not enrolled.
+- `BiometricCard` test: toggle enable/disable calls the right context methods.
+- Existing web tests must stay green (all new behavior is `isNativeApp()`-gated; jsdom → false).
+- Manual QA on device/emulator: `adb -e emu finger touch 1` to simulate a fingerprint.
 
-## 8. Rollout & Backend Coordination
-- Backend: add/confirm a **refresh-token or biometric-token exchange** endpoint and a way to
-  **revoke** it (server-side kill switch, and on logout). 
-- Feature-flag the UI (remote config) so it can be dark-launched and rolled back.
-- Analytics: track offer-shown, enabled, disabled, biometric-login-success/failure (no PII).
-- Update privacy policy / store listing note that biometric data never leaves the device (Android
-  handles the biometric; the app only receives success + a crypto object).
+## 8. Optional backend hardening (not required for v1)
+Reusing the login refresh token works today. For stronger isolation later, `UserService` could
+mint a **dedicated, independently-revocable biometric refresh token** at enrollment and add a
+"revoke biometric sessions" action — so disabling biometrics (or losing a device) can be enforced
+server-side, not just client-side. Out of scope for the first cut.
 
-## 9. Open Questions / Decisions for the User
-1. **"Fingerprint" vs "biometric" as separate choices.** The Android system prompt does not let an
-   app force *only* fingerprint on a face-capable device — `BiometricPrompt` uses whatever strong
-   biometric the device offers. Options:
-   - (a) **Single toggle** labeled "Biometric login" (recommended, matches platform behavior), or
-   - (b) show two labels in the post-login dialog ("Fingerprint" / "Biometrics") that both map to
-     the same `BiometricPrompt` — cosmetic only.
-   The plan assumes (a). Confirm if you want the two-option wording in the dialog.
-2. **Which secret to store** — reuse the existing refresh token, or have the backend mint a
-   dedicated, independently-revocable biometric token (recommended)?
-3. **Re-offer cadence** after "Not now" — never again until Settings, or re-offer after N logins?
+## 9. Decisions to confirm before implementing
+1. **"Fingerprint" vs "Biometrics" as two choices.** On Android, a Capacitor biometric prompt
+   uses whatever strong biometric the device offers — an app can't force *fingerprint-only* on a
+   face-capable phone. So offering two options is **label-only**. Options: (a) one toggle
+   "Biometric login" (recommended), or (b) show both labels in the enroll dialog, both mapping to
+   the same prompt. Your request said "ask if they want a fingerprint login or biometrics login" —
+   I'll implement (b)'s wording (a dialog that says fingerprint / biometrics) over the single
+   underlying mechanism unless you prefer (a).
+2. **Re-offer cadence** after "Not now": never again until Settings (recommended), or re-offer
+   after N logins?
+3. **Store the login refresh token** (v1, zero backend work) vs. the dedicated biometric token
+   from §8 (more work, better revocation)?
 
-## 10. Task Checklist (implementation order)
-- [ ] Add `androidx.biometric` + `androidx.security:security-crypto` dependencies.
-- [ ] `BiometricAvailability` helper + unit tests.
-- [ ] `CryptoManager` (Keystore key creation, encrypt/decrypt ciphers).
-- [ ] `BiometricSecretStore` (EncryptedSharedPreferences wrapper) + tests.
-- [ ] `BiometricAuthenticator` (BiometricPrompt + CryptoObject wrapper).
-- [ ] `AuthRepository` additions: `enrollBiometric`, `loginWithBiometric`, `disableBiometric`.
-- [ ] Post-login "Enable biometric login?" dialog + wiring after successful login.
-- [ ] "Login with fingerprint" button on the login screen.
-- [ ] "Biometric login" toggle in Settings (enable → enroll, disable → clear).
-- [ ] Error/edge-case handling per §6.
-- [ ] Instrumented tests + QA matrix pass.
-- [ ] Backend token-exchange/revoke endpoint + feature flag + analytics.
-
----
-
-## Appendix A — Reference snippets (native Android / Kotlin)
-
-**Availability check**
-```kotlin
-fun biometricStatus(context: Context): Int =
-    BiometricManager.from(context)
-        .canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)
-// BIOMETRIC_SUCCESS / _ERROR_NO_HARDWARE / _ERROR_HW_UNAVAILABLE / _ERROR_NONE_ENROLLED
-```
-
-**Keystore key (auth-required, invalidated on new enrollment)**
-```kotlin
-val spec = KeyGenParameterSpec.Builder(KEY_ALIAS,
-        KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
-    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-    .setUserAuthenticationRequired(true)
-    .setInvalidatedByBiometricEnrollment(true)
-    .build()
-KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
-    .apply { init(spec) }.generateKey()
-```
-
-**Prompt with CryptoObject**
-```kotlin
-val prompt = BiometricPrompt(activity, executor, object : BiometricPrompt.AuthenticationCallback() {
-    override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
-        val cipher = result.cryptoObject!!.cipher!!   // now unlocked
-        // encrypt (enroll) or decrypt (login) the token
-    }
-    override fun onAuthenticationError(code: Int, msg: CharSequence) { /* handle §6 */ }
-})
-val info = BiometricPrompt.PromptInfo.Builder()
-    .setTitle("Login with fingerprint / biometrics")
-    .setNegativeButtonText("Use password")
-    .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
-    .build()
-prompt.authenticate(info, BiometricPrompt.CryptoObject(cipher))
-```
-
-## Appendix B — Equivalent libraries for other stacks
-| Stack | Biometric API | Secure storage |
-|---|---|---|
-| **Native Android (Kotlin/Java)** | `androidx.biometric:BiometricPrompt` + Keystore | `EncryptedSharedPreferences` |
-| **.NET MAUI** | `Plugin.Maui.Biometric` or `Plugin.Fingerprint`; platform `KeyStore` via bindings | `SecureStorage` (Xamarin.Essentials) backed by Keystore |
-| **React Native** | `react-native-biometrics` / `expo-local-authentication` | `react-native-keychain` / `expo-secure-store` |
-| **Flutter** | `local_auth` | `flutter_secure_storage` |
-
-The **flows, security model, and edge cases in §5–§6 are identical** across stacks; only the API
-names change.
+## 10. Implementation checklist (in order)
+- [ ] Confirm plugin ↔ Capacitor 8 compatibility; install plugin(s); `cap sync`.
+- [ ] `src/lib/biometric.ts` (native wrapper) + tests.
+- [ ] `src/auth/biometric.ts` (enable/disable/isEnabled + secure-storage key) + tests.
+- [ ] `AuthContext` additions (`enrollBiometric`, `loginWithBiometric`, `disableBiometric`, flags).
+- [ ] `BiometricEnrollPrompt` + wire into `LoginPage` post-login.
+- [ ] "Log in with fingerprint" button on `LoginPage`.
+- [ ] `BiometricCard` in `SettingsPage` (native only).
+- [ ] Edge-case handling per §6.
+- [ ] Tests green (`npm test`, `npm run lint`, `npm run typecheck`); manual device QA.
