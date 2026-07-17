@@ -12,6 +12,31 @@
 > with a **verify agent** that runs the ML harness gates and the affected tests before the next wave
 > starts. Details in "How to execute with subagents" at the end.
 
+## Status (2026-07-17)
+
+Implementation branch: `claude/patterns-anomalies-wave0-1` in the target repo.
+
+- **Step 0: done, merged, pushed** (all four WPs). `(UserId, Scope, Date)` index migration
+  (`AddAnomalyUserScopeDateIndex`); aggregates caching in `CachedExpenseApiClient`; write-through
+  cache invalidation — ExpenseService now mints its own RS256 service tokens (`insights:invalidate`
+  scope) and calls a new `POST /api/internal/cache/invalidate` on InsightService after statement and
+  receipt imports (fire-and-forget); the four Phase 5 harness scenarios with measured
+  pre-implementation numbers in `BASELINE.md` (drifting-rent and end-of-month bills: 3 daily-spike
+  FPs each). WP0.4 (alert-rate metrics) was deprioritized in favor of Step 1 — still open.
+- **Step 1 / WP1.1: done, merged, pushed** (`d9eff53`). Causal drift-tolerant recurring-bill
+  subtraction (`Ml/RecurringBillSubtraction.cs`; schedule computed causally from the cached
+  transaction fetch, NOT from the batch-computed `recurring_charges` rows, which would leak future
+  info into backtests) + stable-bill price-step rule in `MonthlyCadenceRules` (fires at 1.05× when
+  trailing relative MAD ≤ 10%, only in (1.05×, 1.3×], transition month only). Measured:
+  `RentFirstBusinessDay` and `EndOfMonthBill` 3 FPs → **0**; `RentPriceStep` +10% step now caught as
+  `amount-jump` (was missed); `PaydaySpiker` precision 0.75 → 1.00; originals byte-identical; all
+  13 Ml gates green, 0 skipped; suites 220/191/67. Two disclosed behavior notes: per-day 40-day
+  warm-up (early-history days are never flagged), and stale pre-Phase-5 bill-day daily anomalies
+  persist in `anomalies` until dismissed (store never deletes — noted in `BASELINE.md`).
+- **Step 1 / WP1.2 (bill attribution cards + cross-link): open** — the implementing agent was cut
+  off by a session usage limit before writing anything; scheduled to resume. Everything else in
+  Steps 2–4 unchanged below.
+
 ## What the plans ask for vs. what the code says
 
 | Plan item | Source | Verified current state |
