@@ -33,9 +33,19 @@ Implementation branch: `claude/patterns-anomalies-wave0-1` in the target repo.
   13 Ml gates green, 0 skipped; suites 220/191/67. Two disclosed behavior notes: per-day 40-day
   warm-up (early-history days are never flagged), and stale pre-Phase-5 bill-day daily anomalies
   persist in `anomalies` until dismissed (store never deletes — noted in `BASELINE.md`).
-- **Step 1 / WP1.2 (bill attribution cards + cross-link): open** — the implementing agent was cut
-  off by a session usage limit before writing anything; scheduled to resume. Everything else in
-  Steps 2–4 unchanged below.
+- **Step 1 / WP1.2: done, merged, pushed** (`78c3f20`) — **Step 1 / ML Phase 5 is complete.**
+  `BillAttributionRules` (reusing the WP1.1 causal schedule gates: ≥3 priors, 30±6 cadence,
+  MAD ≤ 0.20) attributes a flagged bill-day residual to its recurring merchant when it explains
+  >50%; anomaly cards on desktop and mobile now lead with "Landlord ApS was charged twice
+  (2 × $8,500 — usually once per month)" and demote the "≈ N× a typical {day}" line. Cross-link via
+  nullable `anomalies.RelatedNaturalKey` (store-lookup variant, migration
+  `AddAnomalyRelatedNaturalKey`) ties the daily anomaly to the bill rules' category/transaction
+  report — exposed as `relatedAnomalyKey`, UI navigation deferred. Verified: InsightService.Tests
+  230/230, Ml gates 13/13, ExpenseService 191/191, UserService 67/67, ClientApp typecheck/build
+  green with 303/303 tests.
+- **Next up (Step 2, all parallel):** WP2.1 spend-shift, WP2.2 creep detector (now unblocked by
+  Phase 5), WP2.3 forgotten-trials + duplicate-rails; plus the deferred WP0.4 metrics. Steps 2–4
+  unchanged below.
 
 ## What the plans ask for vs. what the code says
 
