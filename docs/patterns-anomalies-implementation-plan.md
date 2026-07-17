@@ -43,9 +43,32 @@ Implementation branch: `claude/patterns-anomalies-wave0-1` in the target repo.
   report — exposed as `relatedAnomalyKey`, UI navigation deferred. Verified: InsightService.Tests
   230/230, Ml gates 13/13, ExpenseService 191/191, UserService 67/67, ClientApp typecheck/build
   green with 303/303 tests.
-- **Next up (Step 2, all parallel):** WP2.1 spend-shift, WP2.2 creep detector (now unblocked by
-  Phase 5), WP2.3 forgotten-trials + duplicate-rails; plus the deferred WP0.4 metrics. Steps 2–4
-  unchanged below.
+- **Step 2 + WP0.4: done, merged, pushed** (`c71ca30`) — four parallel lower-tier agents in
+  isolated worktrees, merged metrics → radar → creep → spend-shift (one additive frontend conflict
+  set, resolved at merge):
+  - **WP2.1 spend-shift** — `GET /api/spend-shift`: last-complete-month vs prior-3-month average,
+    per-category delta decomposed into frequency / price (receipt-unit-price refined where covered)
+    / new-merchants / disappeared-merchants / one-offs (persisted-anomaly dates excluded from the
+    other terms); the five terms sum exactly to the delta by construction. Top-3 movers as
+    sentences with ×12 annualization. "What changed this month" card on desktop + mobile.
+  - **WP2.2 creep detector (D1)** — harness-first `SlowCreep` scenario; Mann-Kendall (p<0.05) +
+    Theil-Sen on completed-month series, floor `max(120, 15% of annual spend)` raised by the
+    per-user feedback offset; frequency-vs-price attribution; DK delivery tagging; persisted as
+    kind `creep` riding existing feedback/persistence; "Creeping up" card (desktop; mobile
+    deferred). Measured: SlowCreep p=0.0069 caught with correct frequency attribution — the old
+    monthly-cadence path fired 6 misdiagnosed one-off alerts on the same series; five original
+    scenarios null; TrendingUp an honest documented near-miss (82% of floor). Ml gates 13 → 17.
+  - **WP2.3 radar completion** — forgotten-trials (0/low → ≥5× within 45d) and duplicate-rails
+    (amount-cluster split >20%, both rails active ≤60d) as new cancel-candidate reasons
+    `trial-converted` / `duplicate-rails` with UI labels.
+  - **WP0.4 metrics** — `semx.insight.anomalies.detected` (newly-persisted only, at the
+    `AnomalyStore` choke point), `.anomalies.feedback`, `.detection.threshold_adjustments`
+    OTel counters.
+  - Verified on the merged tree: InsightService 275/275, ExpenseService 191/191, UserService
+    67/67, ClientApp typecheck/build + 314/314 tests.
+- **Remaining:** Step 3 (chart↔card linking, price-hike history, chat grounding + ask-why) and
+  Step 4 (trust loop, loyalty-tax radar, impulse mirror) — unchanged below; creep's mobile card
+  is a small carry-over into Step 3's frontend package.
 
 ## What the plans ask for vs. what the code says
 
