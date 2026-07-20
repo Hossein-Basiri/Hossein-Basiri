@@ -66,9 +66,29 @@ Implementation branch: `claude/patterns-anomalies-wave0-1` in the target repo.
     OTel counters.
   - Verified on the merged tree: InsightService 275/275, ExpenseService 191/191, UserService
     67/67, ClientApp typecheck/build + 314/314 tests.
-- **Remaining:** Step 3 (chart↔card linking, price-hike history, chat grounding + ask-why) and
-  Step 4 (trust loop, loyalty-tax radar, impulse mirror) — unchanged below; creep's mobile card
-  is a small carry-over into Step 3's frontend package.
+- **Step 3: done, pushed** (branch `claude/patterns-anomalies-step3`, `8d9f466`, 2026-07-20).
+  WP3.1 (chart↔card linking, severity-colored clickable dots) and WP3.2 (price-hike history:
+  `recurring_charge_events` + hike walk on the savings inventory) had already landed via the
+  target repo's WOW Phase 2 wave (PR #79, verified in code before starting). This wave delivered
+  the remainder: **WP3.3** — chat grounded in the persisted `anomalies` store (non-dismissed/
+  non-stale, 90-day window, cap 25, scope/kind/severity/status/category; read untracked so chat
+  never consumes the notify-once lifecycle) with evidence attachment (daily scope: forecast
+  contexts' top transactions + bill attribution; transaction scope: merchant joined from the
+  CategoryAnomalies response by persisted `AnomalyId`, sub-query sent only when needed); chat
+  response carries the grounded rows with ids and `ChatPanel` renders dismiss/confirm chips for
+  anomalies cited by ISO date; `semx:open-chat` gained a backward-compatible `detail.prefill`
+  and "Ask why"/"Ask about this" actions on spike tiles/cards and savings rows — plus the
+  **creep mobile card** carry-over (`MobileCreepCard.tsx`, shared query/dismiss/copy with the
+  desktop panel). Verified on the merged tree: InsightService 560/560 (all Ml gates, 0 skipped),
+  ExpenseService 230/230, UserService 135/135, NotificationService 116/116, ClientApp typecheck +
+  582/582 tests + production build.
+- **Step 4: already shipped upstream** — verified 2026-07-20 in the target repo's
+  `EVERYDAY_INSIGHTS_PLAN.md` status notes and code: WP4.1 trust loop = D6 (merchant rules +
+  retroactive recategorization + cache invalidation + confidence gating, shipped 2026-07-19),
+  WP4.2 loyalty-tax radar = D2 (shipped 2026-07-19, on top of D3's price-event history), WP4.3
+  impulse mirror = D5 (shipped 2026-07-19). Nothing left to build there.
+- **Remaining:** nothing — this plan is complete. Follow-ons live in other plans (notification
+  delivery for the new cards → PRODUCT_OWNER_PORTAL; agentic/streaming chat → CHATBOT Phases 2/4).
 
 ## What the plans ask for vs. what the code says
 
