@@ -67,8 +67,9 @@ Implementation branch: `claude/patterns-anomalies-wave0-1` in the target repo.
   - Verified on the merged tree: InsightService 275/275, ExpenseService 191/191, UserService
     67/67, ClientApp typecheck/build + 314/314 tests.
 - **Remaining:** Step 3 (chart↔card linking, price-hike history, chat grounding + ask-why) and
-  Step 4 (trust loop, loyalty-tax radar, impulse mirror) — unchanged below; creep's mobile card
-  is a small carry-over into Step 3's frontend package.
+  Step 4 (trust loop, loyalty-tax radar, impulse mirror, promotion/trial expiry reminders — WP4.4
+  added 2026-07-21) — below; creep's mobile card is a small carry-over into Step 3's frontend
+  package.
 
 ## What the plans ask for vs. what the code says
 
@@ -268,6 +269,41 @@ Presentation of what Steps 1–2 detect. WP3.1 is frontend-only; WP3.2 spans sch
   9/month, 640 kr avg" — descriptive, not judgmental; optional user friction rule ("flag online
   purchases > 500 kr"). Reuses the transaction fetch; persisted as scope `pattern` for feedback.
 
+**WP4.4 — Promotion/trial expiry reminders: cancel before we get charged** *(backend+frontend agent, medium; added 2026-07-21)*
+- The gap: WP2.3's forgotten-trials rule only fires **after** the trial has converted and the first
+  full charge has landed. This WP is the proactive counterpart — remind the user **before** a
+  promotion or free trial runs out so they can cancel in time and never get charged.
+- **Detection (deterministic, two sources):**
+  - *Inferred*: a recurring merchant whose current amount is 0/low relative to that merchant's
+    later/known standard price, or whose first charge fits the common 7/14/30-day trial windows —
+    mark the record as a **promo candidate** with an estimated end date (`FirstSeen + trial window`,
+    or `NextRenewal` for discounted intro pricing). Reuses the WP2.3 trial heuristics and the
+    persisted `recurring_charges` fields (`NextRenewal = LastSeen + CadenceDays`,
+    `SavingsRules.cs:355`) — no new detection framework.
+  - *User-annotated* (the reliable path): a "This is a promotion — ends on …" action on the
+    subscription inventory rows (`SavingsPanel.tsx:180-201`) writing new nullable
+    `PromoEndsAt`/`PromoNote` fields on `Domain/RecurringChargeRecord.cs` via the existing
+    `POST /api/savings/recurring/{id}/status`-style endpoint. Inferred candidates surface as a
+    one-tap confirm ("Looks like a trial — when does it end?") rather than a silent guess.
+- **Reminder emission:** a daily-evaluated rule (same pass that computes cancel candidates) emits a
+  persisted anomaly, scope `merchant`, kind `promo-expiry`, when `PromoEndsAt` (or the inferred end)
+  is within a lead window — default **7 days**, and again at 1 day. Card copy is action-first:
+  *"Your HBO Max promo ends in 5 days (Jul 26) — after that it renews at ~129 kr/mo. Cancel now to
+  avoid the charge."* Estimated post-promo price from the merchant's known standard amount where we
+  have it, else omitted. Dedup by natural key (`merchant + PromoEndsAt`) so the 7-day and 1-day
+  reminders don't stack; dismiss/confirm feedback reuses the existing anomaly status loop
+  (dismiss = "I'm keeping it", which also suppresses the 1-day follow-up).
+- **Frontend:** promo-expiry card at the top of the Savings panel's cancel-candidates section
+  (`SavingsPanel.tsx:288-315`) with a deadline countdown, plus a badge on the inventory row while a
+  promo is tracked. New `REASON_LABELS` entry (`promo-expiring`).
+- Notification *delivery* (push/digest so the reminder reaches the user even when they don't open
+  the app) stays owned by PRODUCT_OWNER_PORTAL Part N — this WP produces the persisted, dated
+  reminder events that pipeline consumes.
+- Acceptance: rule unit tests — annotated promo emits at T−7 and T−1 and never after `PromoEndsAt`;
+  inferred trial candidate emits only after user confirmation; dismissed reminder suppresses the
+  follow-up; no duplicate reminders across daily re-runs (natural-key dedup test); UI renders the
+  countdown card and row badge.
+
 ## Dependency graph
 
 ```
@@ -279,7 +315,7 @@ Step 2:  WP2.1 ∥ WP2.2 ∥ WP2.3               (WP2.2 requires Step 1; 2.1/2.3
                           │
 Step 3:  WP3.1 ∥ WP3.2 ∥ WP3.3               (3.3 benefits from 1.2's attribution; not blocked)
                           │
-Step 4:  WP4.1 ∥ WP4.2 ∥ WP4.3               (4.2 after 3.2)
+Step 4:  WP4.1 ∥ WP4.2 ∥ WP4.3 ∥ WP4.4       (4.2 after 3.2; 4.4 only needs Step 0 + WP2.3 heuristics)
 ```
 
 Total: ~15–20 focused days across 5 waves; each wave independently demoable.
