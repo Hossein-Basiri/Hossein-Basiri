@@ -66,12 +66,40 @@ Implementation branch: `claude/patterns-anomalies-wave0-1` in the target repo.
     OTel counters.
   - Verified on the merged tree: InsightService 275/275, ExpenseService 191/191, UserService
     67/67, ClientApp typecheck/build + 314/314 tests.
-- **Remaining:** Step 3 (chart↔card linking, price-hike history, chat grounding + ask-why) and
-  Step 4 (trust loop, loyalty-tax radar, impulse mirror, promotion/trial expiry reminders — WP4.4
-  added 2026-07-21) — below; creep's mobile card is a small carry-over into Step 3's frontend
-  package.
+- **Steps 3 + 4: done, pushed** (branch `patterns-anomalies-wave3` in the target repo,
+  2026-07-21). Reality check first: since this plan was written, other work in the target repo
+  had already shipped WP3.1 (severity dots + chart↔card click + brush zoom), WP3.2
+  (`recurring_charge_events` price history), WP4.1 (merchant rules + category source), WP4.2
+  (loyalty status), WP4.3 (impulse card) and the creep mobile card — so this wave implemented
+  the two genuinely open WPs as parallel subagents in isolated worktrees:
+  - **WP3.3 chat grounding + ask-why** — chat's `recentAnomalies` (5 flattened in-memory daily
+    totals) replaced with `IAnomalyStore.GetRecentForChatAsync`: 90-day window, cap 10
+    (higher severity wins slots), dismissed/stale excluded, read-only. Transaction evidence via
+    a new nullable `anomalies.Merchant` column (migration `AddAnomalyMerchant`) written at
+    detection time — nothing re-detected in the chat path, and the system prompt forbids
+    claiming unlisted detections. Typed `semx:open-chat` detail payload (`openChat.ts`) →
+    ChatPanel prefill (focused, never auto-sent); "Ask why" on desktop `SpikeTile`, mobile
+    `SpikeCard`, and savings cancel-candidate rows; Dismiss/Confirm bar in ChatPanel driven
+    only by the deterministic payload's anomaly id — never by parsing LLM output.
+  - **WP4.4 promo/trial expiry reminders** — `PromoEndsAt`/`PromoNote` on
+    `RecurringChargeRecord` (migration `AddRecurringChargePromo`; the diff never clobbers
+    them), `POST /api/savings/recurring/{id}/promo` annotation endpoint, deterministic
+    `DetectPromoCandidates` (zero-first-charge in a 7/14/30-day trial window, or ≤70% of the
+    user's own prior stopped record — no invented price catalog) surfaced as one-tap confirm
+    only. Confirmed promos emit persisted `scope=merchant, kind=promo-expiry` anomalies at
+    T−7/T−1, natural-keyed on fixed `PromoEndsAt−7`/`−1` dates so daily re-runs dedupe;
+    dismissing the T−7 reminder suppresses the T−1 follow-up; nothing emits after
+    `PromoEndsAt`. Countdown card atop cancel candidates + row badge/annotation UI (desktop),
+    reminders lead the mobile cuts card; `promo-expiring` reason label; en/da/fa locales.
+  - **Verified on the merged tree:** InsightService 630/630 (0 skipped; baseline 601 + 5 chat
+    + 24 promo; Ml gates all green), ClientApp typecheck/build clean + 579/579 tests
+    (baseline 565 + 14). One merge conflict (two additive `IAnomalyStore` methods) resolved by
+    keeping both; `InMemoryAnomalyStore` taught the chat method post-merge. CHATBOT plan
+    Phase 3 marked shipped in the target repo.
+- **Remaining:** nothing open in this plan. Chat streaming/tools (CHATBOT Phase 4) and
+  notification *delivery* for reminders (PRODUCT_OWNER_PORTAL Part N) stay owned elsewhere.
 
-### Next up: Step 3 — readiness assessment (2026-07-21)
+### Superseded: Step 3 — readiness assessment (2026-07-21, pre-implementation)
 
 Step 3 is the next undone wave and is **fully unblocked**: every precondition it names is merged —
 the Step 0 `(UserId, Scope, Date)` index (backs WP3.3's persisted-anomaly query), WP1.2's
