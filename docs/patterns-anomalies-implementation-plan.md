@@ -71,6 +71,37 @@ Implementation branch: `claude/patterns-anomalies-wave0-1` in the target repo.
   added 2026-07-21) — below; creep's mobile card is a small carry-over into Step 3's frontend
   package.
 
+### Next up: Step 3 — readiness assessment (2026-07-21)
+
+Step 3 is the next undone wave and is **fully unblocked**: every precondition it names is merged —
+the Step 0 `(UserId, Scope, Date)` index (backs WP3.3's persisted-anomaly query), WP1.2's
+attribution + `RelatedNaturalKey` cross-link (feeds WP3.3's evidence answers), and all of Step 2.
+No schema or detector work from other waves is pending. Per-WP assessment:
+
+- **WP3.1 (chart↔card linking)** — lowest risk, frontend-only; the severity palette it needs
+  already exists (`SEVERITY_PILL`). **Absorb the creep-mobile-card carry-over from WP2.2 into this
+  package** so the mobile gap closes in the same frontend pass. One addition since the plan was
+  written: dots and severity colors must also cover the new `creep` kind, which has no chart dot
+  today (it's a trend, not a day — decide dot-vs-badge treatment during the WP).
+- **WP3.2 (price-hike history)** — the only Step 3 WP on the critical path into Step 4 (WP4.2
+  loyalty-tax needs the events history), so if the wave is staggered, start it first. New
+  consideration: seed the `price_events` table from the existing single `LastPriceRise*` fields at
+  migration time so per-service history isn't empty at launch; the acceptance test about surviving
+  reactivation should also cover that seeded row.
+- **WP3.3 (chat grounding + ask-why)** — highest product value of the three; the persisted store
+  it will read is now richer than when the plan was written (kinds `creep`, reasons
+  `trial-converted`/`duplicate-rails`, spend-shift endpoint for "what changed" questions), so the
+  chat query and prompt-context serializer must handle all current kinds, not just daily spikes.
+  `RelatedNaturalKey` from WP1.2 gives "ask why" answers their evidence link for free. WP4.4's
+  future `promo-expiry` kind should need no chat changes if the serializer is kind-agnostic —
+  make that an explicit acceptance point.
+
+Execution recommendation: run the wave as three parallel agents (WP3.1 a cheap frontend agent;
+WP3.2 and WP3.3 medium backend+frontend agents in worktrees — they touch disjoint slices, merge
+order irrelevant). No detector math changes, so no adversarial reviewer is needed this wave; the
+verify agent runs the usual suites plus the WP3.3 chat-harness expectations and an accessibility
+pass on WP3.1's focusable dots. Estimate unchanged at ~3–4 days.
+
 ## What the plans ask for vs. what the code says
 
 | Plan item | Source | Verified current state |
