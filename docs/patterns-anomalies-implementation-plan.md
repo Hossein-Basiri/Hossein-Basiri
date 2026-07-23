@@ -37,7 +37,7 @@ Implementation branch: `claude/patterns-anomalies-wave0-1` in the target repo.
   `BillAttributionRules` (reusing the WP1.1 causal schedule gates: ≥3 priors, 30±6 cadence,
   MAD ≤ 0.20) attributes a flagged bill-day residual to its recurring merchant when it explains
   >50%; anomaly cards on desktop and mobile now lead with "Landlord ApS was charged twice
-  (2 × $8,500 — usually once per month)" and demote the "≈ N× a typical {day}" line. Cross-link via
+  (2 × DKK 8,500 — usually once per month)" and demote the "≈ N× a typical {day}" line. Cross-link via
   nullable `anomalies.RelatedNaturalKey` (store-lookup variant, migration
   `AddAnomalyRelatedNaturalKey`) ties the daily anomaly to the bill rules' category/transaction
   report — exposed as `relatedAnomalyKey`, UI navigation deferred. Verified: InsightService.Tests
