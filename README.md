@@ -36,32 +36,37 @@ Outside of work I build **SEMX** (below), teach **Python &amp; Data Analytics** 
 >
 > **[semx.app](https://semx.app)** &nbsp;·&nbsp; app at **[app.semx.app](https://app.semx.app)**
 >
-> A live personal-finance platform, in production and open to use. It reads your bank statements and receipts, categorizes everything with AI, and turns the mess into forecasts, spending alerts and a ranked list of subscriptions worth cancelling. Built as a **.NET 10 microservices system** behind a single HTTPS gateway, with a **React 19 + TypeScript** front end, a native Android app, PostgreSQL, Docker Compose and end-to-end observability. Hosted in the EU.
+> A live personal-finance platform, in production and open to use. It reads your bank statements and receipts, categorizes everything with AI, and turns the mess into forecasts, spending alerts and a ranked list of subscriptions worth cancelling. Four **.NET 10** minimal-API services behind a YARP gateway, a **React 19 + TypeScript** SPA that also ships as a Capacitor Android app, PostgreSQL, Docker Compose, and OpenTelemetry into a Grafana LGTM stack. Hosted in the EU.
 >
 > **What's interesting about it**
 >
 > - **Forecasting with no ML runtime.** Managed Holt-Winters smoothing, split-conformal prediction intervals and a median/MAD anomaly detector, all in pure portable C# (identical on x64 and ARM64), with per-series model selection by backtest.
 > - **Savings finder.** Inventories every recurring charge, predicts renewal dates, flags price rises and overlapping subscriptions, ranks cancel candidates, and keeps a found-money ledger of what you actually saved.
 > - **Layered categorization.** User history, then keyword rules, then an LLM only when the cheap tiers can't decide, so most rows never touch a model.
-> - **Import anything.** CSV, OFX/QFX and PDF statements, or photograph a receipt and have a vision model extract line items into normalized products, down to grams, litres and unit prices. Scan a QR code to use your phone as the scanner.
+> - **Import anything.** CSV, OFX/QFX and PDF statements, or photograph a receipt and have a vision model extract line items into normalized products, down to grams, litres and unit prices. Scan a QR code to use your phone as the scanner. Those normalized items feed pantry insights: month-over-month consumption per product, unit-price trends and shrinkflation detection, so it notices when the pack shrank but the price didn't.
 > - **Security by design.** Passkeys (WebAuthn), TOTP two-factor, RS256 JWTs signed only by the auth service, single-use rotating refresh tokens (replay revokes the whole session family), scope-limited service-to-service tokens, per-device revocable sessions.
-> - **Observability and CI.** OpenTelemetry traces, metrics and logs over OTLP; one distributed trace across the gateway and every service; xUnit suites plus a full-stack Docker smoke test in GitHub Actions.
-> - **Built for real users.** Light and dark themes, English and Farsi with full right-to-left support, desktop and phone.
+> - **Notifications that earn their keep.** A background sweep turns detected renewals (warned three days ahead), price rises, high-severity anomalies and same-day double charges into notify-once inbox items, with per-class email toggles capped at one mail a day.
+> - **Observability you can actually use.** All four services export traces, metrics and Serilog structured logs over OTLP: one distributed trace spanning the gateway, EF Core commands and every hop. Aspire dashboard for the inner loop, Grafana + Tempo + Loki + Prometheus for history.
+> - **Runs on real infrastructure.** Docker Compose with health-gated startup, active YARP health checks, xUnit suites, and a CI job that stands up the whole production configuration and smoke-tests it.
+> - **Built for real users.** Light and dark themes, English and Farsi with full right-to-left support, a phone shell on Android and on narrow viewports, and an owner portal for usage stats, sessions and admin actions behind an audited allowlist.
 >
 > ```
->                    ┌──────────────────────────┐
->                    │   API Gateway (YARP)     │
->                    │ single HTTPS entry point │
->                    └────────────┬─────────────┘
->            /users/**         /expenses/**        /insights/**
->                 ▼                  ▼                  ▼
->          UserService        ExpenseService      InsightService
->            (auth)          (data + import)      (forecasting)
->                 │                  │                  │
->                 ▼                  ▼                  │
->           PostgreSQL         PostgreSQL ◄─────────────┘
->                                            reads aggregates
->                                            & budgets over HTTP
+>                       ┌──────────────────────────┐
+>                       │    API Gateway (YARP)    │
+>                       │ single HTTPS entry point │
+>                       └─────────────┬────────────┘
+>       /users/**      /expenses/**      /insights/**     /notifications/**
+>           ▼                ▼                 ▼                  ▼
+>     UserService     ExpenseService ◄─  InsightService ◄─ NotificationService
+>       (auth)        (data + import)     (forecasting,      (inbox + email,
+>                                        savings finder)    background sweep)
+>           │                │                 │                  │
+>           ▼                ▼                 ▼                  ▼
+>         mydb          expensedb          insightdb            notifdb
+>           └────────────────┴── PostgreSQL 15 ┴──────────────────┘
+>
+>   clients      React SPA (web + Capacitor Android)  ·  owner portal
+>   telemetry    OTLP ─► Aspire dashboard  ·  Grafana + Tempo + Loki + Prometheus
 > ```
 >
 > <p>
@@ -72,6 +77,7 @@ Outside of work I build **SEMX** (below), teach **Python &amp; Data Analytics** 
 >   <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL">
 >   <img src="https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker">
 >   <img src="https://img.shields.io/badge/OpenTelemetry-425CC7?style=flat-square&logo=opentelemetry&logoColor=white" alt="OpenTelemetry">
+>   <img src="https://img.shields.io/badge/Grafana_LGTM-F46800?style=flat-square&logo=grafana&logoColor=white" alt="Grafana LGTM">
 > </p>
 >
 > **→ [Visit semx.app](https://semx.app)** &nbsp;·&nbsp; **[Open the app](https://app.semx.app)** &nbsp;·&nbsp; **[Read the architecture write-up](https://github.com/Hossein-Basiri/semx-showcase)**
