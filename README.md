@@ -14,7 +14,8 @@
 <p align="center">
   <a href="https://www.linkedin.com/in/basiri-hossein"><img src="https://img.shields.io/badge/LinkedIn-0A66C2?style=for-the-badge&logo=linkedin&logoColor=white" alt="LinkedIn"></a>
   <a href="mailto:basiri.hossein@proton.me"><img src="https://img.shields.io/badge/Email-6D4AFF?style=for-the-badge&logo=protonmail&logoColor=white" alt="Email"></a>
-  <a href="https://github.com/Hossein-Basiri/semx-showcase"><img src="https://img.shields.io/badge/Featured_project-181717?style=for-the-badge&logo=github&logoColor=white" alt="Featured project"></a>
+  <a href="https://semx.app"><img src="https://img.shields.io/badge/semx.app-00A67E?style=for-the-badge&logo=googlechrome&logoColor=white" alt="SEMX landing page"></a>
+  <a href="https://github.com/Hossein-Basiri/semx-showcase"><img src="https://img.shields.io/badge/SEMX_write--up-181717?style=for-the-badge&logo=github&logoColor=white" alt="SEMX write-up"></a>
 </p>
 
 ---
@@ -33,15 +34,19 @@ Outside of work I build **SEMX** (below), teach **Python &amp; Data Analytics** 
 
 > ### 🧾 SEMX, an AI-Powered Smart Expense Manager
 >
-> A production-style personal-finance platform: import a bank statement, get every transaction auto-categorized, track budgets, and receive spend forecasts and anomaly alerts. Built as a **.NET 10 microservices system** behind a single HTTPS gateway, with a **React 19 + TypeScript** front end, PostgreSQL, Docker Compose and end-to-end observability.
+> **[semx.app](https://semx.app)** &nbsp;·&nbsp; app at **[app.semx.app](https://app.semx.app)**
+>
+> A live personal-finance platform, in production and open to use. It reads your bank statements and receipts, categorizes everything with AI, and turns the mess into forecasts, spending alerts and a ranked list of subscriptions worth cancelling. Built as a **.NET 10 microservices system** behind a single HTTPS gateway, with a **React 19 + TypeScript** front end, a native Android app, PostgreSQL, Docker Compose and end-to-end observability. Hosted in the EU.
 >
 > **What's interesting about it**
 >
-> - **Security by design.** RS256 JWTs signed only by the auth service, single-use rotating refresh tokens (replay revokes the whole session family), scope-limited service-to-service tokens, TOTP 2FA, rate-limited auth endpoints.
 > - **Forecasting with no ML runtime.** Managed Holt-Winters smoothing, split-conformal prediction intervals and a median/MAD anomaly detector, all in pure portable C# (identical on x64 and ARM64), with per-series model selection by backtest.
-> - **Layered categorization.** User history, then keyword rules, then an LLM (local Ollama, cloud fallback) only when the cheap tiers can't decide, so most rows never touch a model.
-> - **Multi-format import.** CSV, OFX/QFX and PDF statements, or scan a QR code to send one straight from your phone.
+> - **Savings finder.** Inventories every recurring charge, predicts renewal dates, flags price rises and overlapping subscriptions, ranks cancel candidates, and keeps a found-money ledger of what you actually saved.
+> - **Layered categorization.** User history, then keyword rules, then an LLM only when the cheap tiers can't decide, so most rows never touch a model.
+> - **Import anything.** CSV, OFX/QFX and PDF statements, or photograph a receipt and have a vision model extract line items into normalized products, down to grams, litres and unit prices. Scan a QR code to use your phone as the scanner.
+> - **Security by design.** Passkeys (WebAuthn), TOTP two-factor, RS256 JWTs signed only by the auth service, single-use rotating refresh tokens (replay revokes the whole session family), scope-limited service-to-service tokens, per-device revocable sessions.
 > - **Observability and CI.** OpenTelemetry traces, metrics and logs over OTLP; one distributed trace across the gateway and every service; xUnit suites plus a full-stack Docker smoke test in GitHub Actions.
+> - **Built for real users.** Light and dark themes, English and Farsi with full right-to-left support, desktop and phone.
 >
 > ```
 >                    ┌──────────────────────────┐
@@ -63,12 +68,13 @@ Outside of work I build **SEMX** (below), teach **Python &amp; Data Analytics** 
 >   <img src="https://img.shields.io/badge/.NET_10-512BD4?style=flat-square&logo=dotnet&logoColor=white" alt=".NET 10">
 >   <img src="https://img.shields.io/badge/YARP-512BD4?style=flat-square" alt="YARP">
 >   <img src="https://img.shields.io/badge/React_19-20232A?style=flat-square&logo=react&logoColor=61DAFB" alt="React 19">
+>   <img src="https://img.shields.io/badge/Android-3DDC84?style=flat-square&logo=android&logoColor=white" alt="Android">
 >   <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL">
 >   <img src="https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white" alt="Docker">
 >   <img src="https://img.shields.io/badge/OpenTelemetry-425CC7?style=flat-square&logo=opentelemetry&logoColor=white" alt="OpenTelemetry">
 > </p>
 >
-> **→ [Read the full architecture write-up](https://github.com/Hossein-Basiri/semx-showcase)**
+> **→ [Visit semx.app](https://semx.app)** &nbsp;·&nbsp; **[Open the app](https://app.semx.app)** &nbsp;·&nbsp; **[Read the architecture write-up](https://github.com/Hossein-Basiri/semx-showcase)**
 >
 > The implementation lives in a private repository. Hiring managers: I'm glad to give a guided, read-only walkthrough, just [email me](mailto:basiri.hossein@proton.me).
 
@@ -128,5 +134,7 @@ Outside of work I build **SEMX** (below), teach **Python &amp; Data Analytics** 
   &nbsp;·&nbsp;
   <a href="https://www.linkedin.com/in/basiri-hossein">LinkedIn</a>
   &nbsp;·&nbsp;
-  <a href="https://github.com/Hossein-Basiri/semx-showcase">SEMX</a>
+  <a href="https://semx.app">semx.app</a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/Hossein-Basiri/semx-showcase">SEMX write-up</a>
 </p>
