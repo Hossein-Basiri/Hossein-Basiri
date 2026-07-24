@@ -21,27 +21,27 @@
 
 ## About me
 
-Backend Lead / Senior Software Engineer at **Leanlinking**, where I own the backend architecture of a supplier-collaboration SaaS platform used daily by ~20 enterprise customers — including **Roche**, **AMS** and **Bulten**.
+Backend Lead / Senior Software Engineer at **Leanlinking**, where I own the backend architecture of a supplier-collaboration SaaS platform used daily by ~20 enterprise customers, including **Roche**, **AMS** and **Bulten**.
 
 I work at the intersection of **distributed systems, event-driven architecture and production reliability**: the person the team turns to for architecture and platform decisions. I also lead the backend for **DEALS**, an AI-powered enterprise negotiation platform built together with Roche across three engineering teams.
 
-Outside of work I build **SEMX** (below), teach **Python &amp; Data Analytics** as a volunteer instructor at **ReDI School**, and use AI-assisted engineering every day — Claude Code, Codex, AI code review, agents and local LLMs.
+Outside of work I build **SEMX** (below), teach **Python &amp; Data Analytics** as a volunteer instructor at **ReDI School**, and use AI-assisted engineering every day: Claude Code, Codex, AI code review, agents and local LLMs.
 
 ---
 
-## Featured project — SEMX
+## Featured project: SEMX
 
-> ### 🧾 SEMX — AI-Powered Smart Expense Manager
+> ### 🧾 SEMX, an AI-Powered Smart Expense Manager
 >
 > A production-style personal-finance platform: import a bank statement, get every transaction auto-categorized, track budgets, and receive spend forecasts and anomaly alerts. Built as a **.NET 10 microservices system** behind a single HTTPS gateway, with a **React 19 + TypeScript** front end, PostgreSQL, Docker Compose and end-to-end observability.
 >
 > **What's interesting about it**
 >
-> - **Security by design** — RS256 JWTs signed only by the auth service, single-use rotating refresh tokens (replay revokes the whole session family), scope-limited service-to-service tokens, TOTP 2FA, rate-limited auth endpoints.
-> - **Forecasting with no ML runtime** — managed Holt-Winters smoothing, split-conformal prediction intervals and a median/MAD anomaly detector, all in pure portable C# (identical on x64 and ARM64), with per-series model selection by backtest.
-> - **Layered categorization** — user history → keyword rules → LLM (local Ollama, cloud fallback) only when the cheap tiers can't decide, so most rows never touch a model.
-> - **Multi-format import** — CSV, OFX/QFX and PDF statements, or scan a QR code to send one straight from your phone.
-> - **Observability & CI** — OpenTelemetry traces, metrics and logs over OTLP; one distributed trace across the gateway and every service; xUnit suites plus a full-stack Docker smoke test in GitHub Actions.
+> - **Security by design.** RS256 JWTs signed only by the auth service, single-use rotating refresh tokens (replay revokes the whole session family), scope-limited service-to-service tokens, TOTP 2FA, rate-limited auth endpoints.
+> - **Forecasting with no ML runtime.** Managed Holt-Winters smoothing, split-conformal prediction intervals and a median/MAD anomaly detector, all in pure portable C# (identical on x64 and ARM64), with per-series model selection by backtest.
+> - **Layered categorization.** User history, then keyword rules, then an LLM (local Ollama, cloud fallback) only when the cheap tiers can't decide, so most rows never touch a model.
+> - **Multi-format import.** CSV, OFX/QFX and PDF statements, or scan a QR code to send one straight from your phone.
+> - **Observability and CI.** OpenTelemetry traces, metrics and logs over OTLP; one distributed trace across the gateway and every service; xUnit suites plus a full-stack Docker smoke test in GitHub Actions.
 >
 > ```
 >                    ┌──────────────────────────┐
@@ -70,7 +70,7 @@ Outside of work I build **SEMX** (below), teach **Python &amp; Data Analytics** 
 >
 > **→ [Read the full architecture write-up](https://github.com/Hossein-Basiri/semx-showcase)**
 >
-> The implementation lives in a private repository. Hiring managers: I'm glad to give a guided, read-only walkthrough — just [email me](mailto:basiri.hossein@proton.me).
+> The implementation lives in a private repository. Hiring managers: I'm glad to give a guided, read-only walkthrough, just [email me](mailto:basiri.hossein@proton.me).
 
 ---
 
@@ -116,7 +116,7 @@ Outside of work I build **SEMX** (below), teach **Python &amp; Data Analytics** 
 | | |
 |---|---|
 | **~33% faster CI** | Cut Azure DevOps build &amp; test times through package caching and parallel pipelines. |
-| **Resilient by design** | Event-driven systems with RabbitMQ, the Saga pattern and distributed caching — large workloads handled asynchronously, failures recovered correctly. |
+| **Resilient by design** | Event-driven systems with RabbitMQ, the Saga pattern and distributed caching, so large workloads run asynchronously and failures recover correctly. |
 | **Team visibility** | Engineering dashboards surfacing blockers, technical debt and delivery risk, so the whole team owns delivery end to end. |
 | **AI in the workflow** | Brought AI-assisted development into daily practice, improving implementation speed, review quality and documentation. |
 | **Giving back** | Volunteer instructor in Python &amp; Data Analytics at ReDI School, mentoring diverse student groups. |
