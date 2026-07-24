@@ -33,7 +33,7 @@ Outside of work I build **SEMX** (below), teach **Python &amp; Data Analytics** 
 
 > ### 🧾 SEMX — AI-Powered Smart Expense Manager
 >
-> A production-style personal-finance platform: import a bank statement, get every transaction auto-categorized, track budgets, and receive spend forecasts and anomaly alerts. Built as a **.NET 9 microservices system** behind a single HTTPS gateway, with a **React 19 + TypeScript** front end, PostgreSQL, Docker Compose and end-to-end observability.
+> A production-style personal-finance platform: import a bank statement, get every transaction auto-categorized, track budgets, and receive spend forecasts and anomaly alerts. Built as a **.NET 10 microservices system** behind a single HTTPS gateway, with a **React 19 + TypeScript** front end, PostgreSQL, Docker Compose and end-to-end observability.
 >
 > **What's interesting about it**
 >
@@ -60,7 +60,7 @@ Outside of work I build **SEMX** (below), teach **Python &amp; Data Analytics** 
 > ```
 >
 > <p>
->   <img src="https://img.shields.io/badge/.NET_9-512BD4?style=flat-square&logo=dotnet&logoColor=white" alt=".NET 9">
+>   <img src="https://img.shields.io/badge/.NET_10-512BD4?style=flat-square&logo=dotnet&logoColor=white" alt=".NET 10">
 >   <img src="https://img.shields.io/badge/YARP-512BD4?style=flat-square" alt="YARP">
 >   <img src="https://img.shields.io/badge/React_19-20232A?style=flat-square&logo=react&logoColor=61DAFB" alt="React 19">
 >   <img src="https://img.shields.io/badge/PostgreSQL-4169E1?style=flat-square&logo=postgresql&logoColor=white" alt="PostgreSQL">
